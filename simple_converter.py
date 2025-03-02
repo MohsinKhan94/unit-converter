@@ -5,6 +5,13 @@ import numpy as np
 # Set a global flag for Plotly availability
 PLOTLY_AVAILABLE = False
 
+# Set page configuration first, before any other Streamlit commands
+st.set_page_config(
+    page_title="Unit Converter",
+    page_icon="🔄",
+    layout="wide"
+)
+
 # Try to import plotly with more detailed error handling
 try:
     import plotly.express as px
@@ -14,13 +21,6 @@ except ImportError as e:
     st.warning(f"Plotly could not be imported: {str(e)}. Visualizations will be limited.")
 except Exception as e:
     st.warning(f"Unexpected error importing plotly: {str(e)}. Visualizations will be limited.")
-
-# Set page configuration
-st.set_page_config(
-    page_title="Simple Unit Converter",
-    page_icon="🔄",
-    layout="wide"
-)
 
 # Include GSAP library and custom animations
 st.markdown("""
@@ -520,6 +520,9 @@ def get_formula(from_unit, to_unit, category, value, result):
 
 # Create a trend visualization
 def create_trend_visualization(from_value, from_unit, to_unit, category):
+    # Declare PLOTLY_AVAILABLE as global
+    global PLOTLY_AVAILABLE
+    
     # Check if units are the same
     if from_unit == to_unit:
         return None
