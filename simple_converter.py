@@ -16,7 +16,6 @@ st.set_page_config(
 try:
     import plotly.express as px
     PLOTLY_AVAILABLE = True
-    st.success("Plotly successfully imported.")
 except ImportError as e:
     st.warning(f"Plotly could not be imported: {str(e)}. Visualizations will be limited.")
 except Exception as e:
