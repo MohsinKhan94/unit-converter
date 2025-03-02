@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# Set page configuration
+# Set page configuration - first Streamlit command
 st.set_page_config(
     page_title="Unit Converter",
     page_icon="🔄",
