@@ -1,7 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
+
+# Set a global flag for Plotly availability
+PLOTLY_AVAILABLE = False
+
+# Try to import plotly with more detailed error handling
+try:
+    import plotly.express as px
+    PLOTLY_AVAILABLE = True
+    st.success("Plotly successfully imported.")
+except ImportError as e:
+    st.warning(f"Plotly could not be imported: {str(e)}. Visualizations will be limited.")
+except Exception as e:
+    st.warning(f"Unexpected error importing plotly: {str(e)}. Visualizations will be limited.")
 
 # Set page configuration
 st.set_page_config(
@@ -508,6 +520,7 @@ def get_formula(from_unit, to_unit, category, value, result):
 
 # Create a trend visualization
 def create_trend_visualization(from_value, from_unit, to_unit, category):
+    # Check if units are the same
     if from_unit == to_unit:
         return None
     
@@ -532,85 +545,70 @@ def create_trend_visualization(from_value, from_unit, to_unit, category):
             converted = convert(val, from_unit, to_unit, category, categories[category])
         converted_values.append(converted)
     
-    # Check if dark mode is enabled to adjust colors accordingly
-    is_dark_mode = st.session_state.get('dark_mode', False) 
+    # Create visualization based on available libraries
+    if PLOTLY_AVAILABLE:
+        try:
+            # Create the plotly plot
+            fig = px.line(
+                x=values, 
+                y=converted_values,
+                labels={"x": f"{from_unit}", "y": f"{to_unit}"},
+                title=f"Conversion Trend: {from_unit} to {to_unit}"
+            )
+            
+            fig.update_layout(
+                plot_bgcolor="white",
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(0,0,0,0.1)',
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(0,0,0,0.1)',
+                ),
+                title_font=dict(size=16),
+                margin=dict(l=40, r=40, t=40, b=40),
+            )
+            
+            return fig
+        except Exception as e:
+            st.warning(f"Error creating Plotly visualization: {str(e)}. Falling back to alternative visualization.")
+            PLOTLY_AVAILABLE = False
     
-    # Set colors based on theme
-    if is_dark_mode:
-        # Dark mode colors
-        line_color = "#00aaff"
-        marker_color = "#00aaff"
-        highlight_marker_color = "#ff5b5b"
-        grid_color = "rgba(255, 255, 255, 0.15)"
-        text_color = "#ffffff"
-        title_color = "#00aaff"
-        plot_bg = "rgba(30, 30, 46, 0.5)"
-        paper_bg = "rgba(30, 30, 46, 0.2)"
-    else:
-        # Light mode colors
-        line_color = "#0066cc"
-        marker_color = "#0066cc"
-        highlight_marker_color = "#ff3b30"
-        grid_color = "rgba(0, 0, 0, 0.1)"
-        text_color = "#333333"
-        title_color = "#0066cc"
-        plot_bg = "rgba(240, 242, 246, 0.8)"
-        paper_bg = "rgba(240, 242, 246, 0.3)"
+    # Fallback to matplotlib if Plotly is not available
+    if not PLOTLY_AVAILABLE:
+        try:
+            import matplotlib.pyplot as plt
+            import io
+            from matplotlib import rcParams
+            
+            # Set matplotlib style
+            rcParams['font.family'] = 'sans-serif'
+            rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'DejaVu Sans']
+            
+            # Create figure
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.plot(values, converted_values, marker='o', linestyle='-', linewidth=2, color='#0066cc')
+            
+            # Add labels and title
+            ax.set_xlabel(from_unit)
+            ax.set_ylabel(to_unit)
+            ax.set_title(f"Conversion Trend: {from_unit} to {to_unit}")
+            
+            # Add grid
+            ax.grid(True, linestyle='--', alpha=0.7)
+            
+            # Style improvements
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            
+            # Return the matplotlib figure to streamlit
+            return fig
+        except Exception as e:
+            st.warning(f"Error creating matplotlib visualization: {str(e)}. Visualization will be disabled.")
+            return None
     
-    # Create the plot with theme-appropriate colors
-    fig = px.line(
-        x=values, 
-        y=converted_values,
-        labels={"x": f"{from_unit}", "y": f"{to_unit}"},
-        title=f"Conversion Trend: {from_unit} to {to_unit}"
-    )
-    
-    fig.update_layout(
-        plot_bgcolor=plot_bg,
-        paper_bgcolor=paper_bg,
-        font=dict(
-            family="Arial, sans-serif",
-            size=14,
-            color=text_color
-        ),
-        xaxis=dict(
-            showgrid=True,
-            gridcolor=grid_color,
-            title_font=dict(color=text_color),
-            tickfont=dict(color=text_color),
-            zerolinecolor=grid_color,
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor=grid_color,
-            title_font=dict(color=text_color),
-            tickfont=dict(color=text_color),
-            zerolinecolor=grid_color,
-        ),
-        title=dict(
-            font=dict(color=title_color, size=16)
-        ),
-        margin=dict(l=40, r=40, t=40, b=40),
-    )
-    
-    # Change the line appearance
-    fig.update_traces(
-        line=dict(width=3, color=line_color),
-        mode='lines+markers',
-        marker=dict(size=8, color=marker_color, line=dict(width=2, color='white'))
-    )
-    
-    # Add points at specific value with highlight
-    fig.add_scatter(
-        x=[from_value],
-        y=[convert(from_value, from_unit, to_unit, category, categories[category]) if category != "Temperature" 
-           else convert_temperature(from_value, from_unit, to_unit)],
-        mode='markers',
-        marker=dict(size=12, color=highlight_marker_color, line=dict(width=2, color='white')),
-        name=f"Current Value: {from_value} {from_unit}"
-    )
-    
-    return fig
+    return None
 
 # Sidebar for settings
 with st.sidebar:
@@ -885,7 +883,42 @@ col2.markdown(f"""
 st.subheader("Conversion Trend")
 fig = create_trend_visualization(from_value, from_unit, to_unit, category)
 if fig:
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        # Check if it's a plotly figure (has 'update_layout' attribute)
+        if hasattr(fig, 'update_layout'):
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            # Assume it's a matplotlib figure
+            st.pyplot(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error displaying visualization: {str(e)}")
+        
+        # Show a basic table as fallback
+        st.write("Conversion values:")
+        values = [0.1, 1, 10, 100]
+        table_data = {"Value in " + from_unit: [], "Value in " + to_unit: []}
+        for val in values:
+            if category == "Temperature":
+                converted = convert_temperature(val, from_unit, to_unit)
+            else:
+                converted = convert(val, from_unit, to_unit, category, categories[category])
+            table_data["Value in " + from_unit].append(val)
+            table_data["Value in " + to_unit].append(converted)
+        st.table(pd.DataFrame(table_data))
+else:
+    # No figure was created, show table as fallback
+    if from_unit != to_unit:
+        st.write("Conversion values:")
+        values = [0.1, 1, 10, 100]
+        table_data = {"Value in " + from_unit: [], "Value in " + to_unit: []}
+        for val in values:
+            if category == "Temperature":
+                converted = convert_temperature(val, from_unit, to_unit)
+            else:
+                converted = convert(val, from_unit, to_unit, category, categories[category])
+            table_data["Value in " + from_unit].append(val)
+            table_data["Value in " + to_unit].append(converted)
+        st.table(pd.DataFrame(table_data))
 
 # Quick conversion table
 st.subheader("Quick Reference Table")
